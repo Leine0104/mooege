@@ -277,6 +277,42 @@ namespace Mooege.Core.MooNet.Toons
             this.SetFields(name, hashCode, GetClassByID(classId), flags, level, account, 0, 0);
         }
 
+        public Toon(ulong persistentId)     // Load a toon from database with a given persistentId
+            : base(persistentId)
+        {
+            var sqlQuery  = string.Format("SELECT * FROM toons WHERE id = {0}", persistentId);
+            var sqlCmd    = new SQLiteCommand(sqlQuery, DBManager.Connection);
+            var sqlReader = sqlCmd.ExecuteReader();
+
+            if (sqlReader.HasRows)
+            {
+                while (sqlReader.Read())
+                {
+                    this.SetFields(sqlReader.GetString(1), sqlReader.GetInt32(6), (ToonClass)sqlReader.GetByte(2), (ToonFlags)sqlReader.GetByte(3), sqlReader.GetByte(4), GameAccountManager.GetAccountByPersistentID((ulong)sqlReader.GetInt64(5)), (uint)sqlReader.GetInt32(7), sqlReader.GetInt32(8));
+                }
+            }
+
+            //add visual equipment
+            D3.Hero.VisualItem[] visualItems = new D3.Hero.VisualItem[8];
+            var itemQuery = string.Format("SELECT * FROM items_visual WHERE toon_id = {0}", persistentId);
+            var itemCmd = new SQLiteCommand(itemQuery, DBManager.Connection);
+            var itemReader = itemCmd.ExecuteReader();
+            if (itemReader.HasRows)
+            {
+                while (itemReader.Read())
+                {
+                    var slot = (int)itemReader.GetInt64(3);
+                    var gbid = (int)itemReader.GetInt64(4);
+                    visualItems[slot] = D3.Hero.VisualItem.CreateBuilder()
+                        .SetGbid(gbid)
+                        .SetEffectLevel(0)
+                        .Build();
+                }
+
+                this.HeroVisualEquipmentField.Value = D3.Hero.VisualEquipment.CreateBuilder().AddRangeVisualItem(visualItems).Build();
+            }
+        }
+
         public int ClassID
         {
             get
@@ -451,13 +487,13 @@ namespace Mooege.Core.MooNet.Toons
                     //item_identity_id = gbid
                     if (VisualItemExistsInDb(slot))
                     {
-                        var itemQuery = string.Format("UPDATE inventory SET item_entity_id={0} WHERE toon_id={1} and inventory_slot={2}", visualItem.Gbid, this.PersistentID, slot);
+                        var itemQuery = string.Format("UPDATE items_visual SET item_entity_id={0} WHERE toon_id={1} and inventory_slot={2}", visualItem.Gbid, this.PersistentID, slot);
                         var itemCmd = new SQLiteCommand(itemQuery, DBManager.Connection);
                         itemCmd.ExecuteNonQuery();
                     }
                     else
                     {
-                        var itemQuery = string.Format("INSERT INTO inventory (toon_id, inventory_loc_x, inventory_loc_y, inventory_slot, item_entity_id) VALUES({0},{1},{2},{3},{4})", this.PersistentID, 0, 0, slot, visualItem.Gbid);
+                        var itemQuery = string.Format("INSERT INTO items_visual (toon_id, inventory_loc_x, inventory_loc_y, inventory_slot, item_entity_id) VALUES({0},{1},{2},{3},{4})", this.PersistentID, 0, 0, slot, visualItem.Gbid);
                         var itemCmd = new SQLiteCommand(itemQuery, DBManager.Connection);
                         itemCmd.ExecuteNonQuery();
                     }
@@ -507,7 +543,7 @@ namespace Mooege.Core.MooNet.Toons
 
         private bool VisualItemExistsInDb(int slot)
         {
-            var query = string.Format("SELECT toon_id FROM inventory WHERE toon_id = {0} AND inventory_slot = {1}", this.PersistentID, slot);
+            var query = string.Format("SELECT toon_id FROM items_visual WHERE toon_id = {0} AND inventory_slot = {1}", this.PersistentID, slot);
             var cmd = new SQLiteCommand(query, DBManager.Connection);
             var reader = cmd.ExecuteReader();
             return reader.HasRows;

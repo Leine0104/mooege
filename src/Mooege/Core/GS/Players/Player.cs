@@ -801,8 +801,7 @@ namespace Mooege.Core.GS.Players
             this.RevealScenesToPlayer(); // reveal scenes in players proximity.
             this.RevealActorsToPlayer(); // reveal actors in players proximity.
 
-            //This can't be in the c-tor
-            //TODO: Hack until proper equipment slots are set 
+            // Load Visual Equipment
             Dictionary<int, int> visualToSlotMapping = new Dictionary<int, int>();
             visualToSlotMapping.Add(0, 1);
             visualToSlotMapping.Add(1, 2);
@@ -818,7 +817,7 @@ namespace Mooege.Core.GS.Players
             for (int slot = 0; slot < 8; slot++)
             {
                 var gbid = this.Toon.HeroVisualEquipmentField.Value.GetVisualItem(slot).Gbid;
-                //if item equiped
+
                 if (gbid != -1)
                 {
                     itemsToAdd.Add(slot, ItemGenerator.GetDefinitionFromGBID(gbid));
@@ -829,6 +828,9 @@ namespace Mooege.Core.GS.Players
             {
                 this.Inventory.EquipItem(ItemGenerator.CookFromDefinition(this, pair.Value), visualToSlotMapping[pair.Key]);
             }
+
+            // Load Equipped Items
+            this.Inventory.LoadFromDB();
 
             //generate visual update message
             this.Inventory.SendVisualInventory(this);
@@ -843,11 +845,15 @@ namespace Mooege.Core.GS.Players
         public override void OnLeave(World world)
         {
             this.Conversations.StopAll();
+
             //save visual equipment
             this.Toon.HeroVisualEquipmentField.Value = this.Inventory.GetVisualEquipment();
             this.Toon.HeroLevelField.Value = this.Attributes[GameAttribute.Level];
             this.Toon.GameAccount.ChangedFields.SetPresenceFieldValue(this.Toon.HeroVisualEquipmentField);
             this.Toon.GameAccount.ChangedFields.SetPresenceFieldValue(this.Toon.HeroLevelField);
+
+            //save equipped items
+            this.Inventory.SaveToDB();
         }
 
         public override bool Reveal(Player player)

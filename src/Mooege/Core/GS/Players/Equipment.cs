@@ -58,13 +58,18 @@ namespace Mooege.Core.GS.Players
         /// </summary>
         public void EquipItem(Item item, int slot)
         {
-            _equipment[slot] = item.DynamicID;
-            if (!Items.ContainsKey(item.DynamicID))
-                Items.Add(item.DynamicID, item);
-            item.Owner = _owner;
-            item.Attributes[GameAttribute.Item_Equipped] = true; // Probaly should be handled by Equipable class /fasbat
-            item.Attributes.SendChangedMessage(_owner.InGameClient);
-            item.SetInventoryLocation(slot, 0, 0);            
+            if (item != null)
+            {
+                _equipment[slot] = item.DynamicID;
+                if (!Items.ContainsKey(item.DynamicID))
+                {
+                    Items.Add(item.DynamicID, item);
+                }
+                item.Owner = _owner;
+                item.Attributes[GameAttribute.Item_Equipped] = true; // Probaly should be handled by Equipable class /fasbat
+                item.Attributes.SendChangedMessage(_owner.InGameClient);
+                item.SetInventoryLocation(slot, 0, 0);
+            }
         }
 
         public void EquipItem(uint itemID, int slot)
